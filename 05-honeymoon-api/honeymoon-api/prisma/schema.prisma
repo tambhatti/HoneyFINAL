@@ -1,0 +1,891 @@
+// Honeymoon Project — Complete PostgreSQL Schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum AdminRole {
+  super_admin
+  admin
+  moderator
+}
+
+enum UserStatus {
+  Active
+  Inactive
+  Banned
+}
+
+enum VendorStatus {
+  Pending
+  Active
+  Inactive
+  Rejected
+}
+
+enum SubscriptionTier {
+  Basic
+  Standard
+  Premium
+}
+
+enum BookingStatus {
+  Pending
+  Upcoming
+  Completed
+  Rejected
+  Resolved
+  Cancelled
+}
+
+enum BookingType {
+  standard
+  custom
+}
+
+enum PaymentStatus {
+  Unpaid
+  Paid
+  Partially_Paid
+  Refunded
+}
+
+enum PaymentMethod {
+  card
+  apple_pay
+  bank_transfer
+}
+
+enum PaymentTxStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+enum QuotationStatus {
+  Requested
+  Pending
+  Upcoming
+  Completed
+  Rejected
+}
+
+enum MeetingStatus {
+  Pending
+  Contacted
+  Meeting_Scheduled
+  Lost
+  Converted
+}
+
+enum ReportStatus {
+  Pending
+  Under_Review
+  Resolved
+  Dismissed
+}
+
+enum PayoutStatus {
+  Pending
+  Approved
+  Paid
+  Cancelled
+}
+
+enum NotifType {
+  booking_confirmed
+  booking_rejected
+  booking_cancelled
+  payment_received
+  payment_failed
+  new_review
+  meeting_request
+  quotation_received
+  quotation_accepted
+  payout_processed
+  subscription_expiring
+  general
+}
+
+enum LoyaltyType {
+  awarded
+  redeemed
+  expired
+  referral_bonus
+}
+
+enum ContentSection {
+  Hero_Banner
+  Features
+  Categories
+  Testimonials
+  CTA_Banner
+}
+
+enum QueryStatus {
+  Open
+  In_Progress
+  Resolved
+  Closed
+}
+
+enum BillingCycle {
+  monthly
+  yearly
+}
+
+// ─── ADMINS ───────────────────────────────────────────────────────────────────
+
+model Admin {
+  id            String    @id @default(uuid())
+  firstName     String
+  lastName      String
+  email         String    @unique
+  password      String
+  phone         String?
+  role          AdminRole @default(admin)
+  avatar        String?
+  loginAttempts Int       @default(0)
+  lockedUntil   DateTime?
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  notifications Notification[]
+  pushNotifications PushNotification[]
+
+  @@map("admins")
+}
+
+// ─── USERS ────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(uuid())
+  firstName       String
+  lastName        String?
+  email           String?    @unique
+  password        String?    // nullable for OAuth users
+  phone           String?    @unique
+  phoneVerified   Boolean    @default(false)
+  emailVerified   Boolean    @default(false)
+  gender          String?
+  uaePassId       String?    @unique
+  avatar          String?    // S3 URL
+  status          UserStatus @default(Active)
+  loyaltyPoints   Int        @default(0)
+  referralCode    String     @unique
+  referredBy      String?
+  loginAttempts   Int        @default(0)
+  lockedUntil     DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  bookings          Booking[]
+  customQuotations  CustomQuotation[]
+  payments          Payment[]
+  reviews           Review[]
+  notifications     Notification[]
+  meetingRequests   MeetingRequest[]
+  reportedBookings  ReportedBooking[]
+  budgets           Budget[]
+  loyaltyLogs       LoyaltyLog[]
+  wishlist          Wishlist[]
+  conversations     Conversation[]
+  pushTokens        PushToken[]
+  queries           Query[]
+  queries           Query[]
+  refreshTokens     RefreshToken[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([referralCode])
+  @@map("users")
+}
+
+// ─── VENDORS ──────────────────────────────────────────────────────────────────
+
+model Vendor {
+  id               String          @id @default(uuid())
+  firstName        String
+  lastName         String
+  email            String          @unique
+  password         String?
+  phone            String?         @unique
+  phoneVerified    Boolean         @default(false)
+  emailVerified    Boolean         @default(false)
+  uaePassId        String?         @unique
+  companyName      String
+  category         String
+  location         String
+  address          String?
+  about            String?
+  avatar           String?         // S3 URL
+  banner           String?         // S3 URL
+  tradeLicense     String?         // S3 URL
+  status           VendorStatus    @default(Pending)
+  isVerified       Boolean         @default(false)
+  rejectionReason  String?
+  rating           Float           @default(0)
+  reviewCount      Int             @default(0)
+  subscriptionPlan SubscriptionTier @default(Basic)
+  subscriptionExpiry DateTime?
+  commissionRate   Float           @default(10)
+  loginAttempts    Int             @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  services         Service[]
+  addons           Addon[]
+  bookings         Booking[]
+  customQuotations CustomQuotation[]
+  reviews          Review[]
+  notifications    Notification[]
+  meetingRequests  MeetingRequest[]
+  reportedBookings ReportedBooking[]
+  payments         Payment[]
+  payouts          Payout[]
+  subscriptionLogs SubscriptionLog[]
+  bankDetails      BankDetail[]
+
+  @@index([email])
+  @@index([status])
+  @@index([category])
+  @@map("vendors")
+}
+
+// ─── CATEGORIES ───────────────────────────────────────────────────────────────
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  icon        String  @default("📌")
+  description String?
+  status      String  @default("Active")
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("categories")
+}
+
+// ─── SERVICES ─────────────────────────────────────────────────────────────────
+
+model Service {
+  id             String  @id @default(uuid())
+  vendorId       String
+  vendor         Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name           String
+  category       String
+  description    String?
+  pricingType    String  // Per Guest | Per Hour | Package | Per Item
+  basePrice      Float
+  minGuests      Int?
+  maxGuests      Int?
+  depositPercent Float   @default(20)
+  minHours       Int?
+  location       String
+  images         String[] // S3 URLs
+  status         String  @default("Active")
+  rating         Float   @default(0)
+  reviewCount    Int     @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  packages    ServicePackage[]
+  policies    ServicePolicy?
+  bookings    Booking[]
+  reviews     Review[]
+
+  @@index([vendorId])
+  @@index([category])
+  @@map("services")
+}
+
+model ServicePackage {
+  id          String   @id @default(uuid())
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  @@map("service_packages")
+}
+
+model ServicePolicy {
+  id                   String  @id @default(uuid())
+  serviceId            String  @unique
+  service              Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  depositRefundable    Boolean @default(false)
+  cancellationNotice   String? // e.g. "14 Days"
+  additionalTerms      String?
+  @@map("service_policies")
+}
+
+// ─── ADD-ONS ──────────────────────────────────────────────────────────────────
+
+model Addon {
+  id        String @id @default(uuid())
+  vendorId  String
+  vendor    Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  title     String
+  category  String?
+  priceType String // Per Guest | Per Hour | Package | Per Item
+  price     Float
+  status    String @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vendorId])
+  @@map("addons")
+}
+
+// ─── BOOKINGS ─────────────────────────────────────────────────────────────────
+
+model Booking {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  vendorId         String
+  vendor           Vendor        @relation(fields: [vendorId], references: [id])
+  serviceId        String
+  service          Service       @relation(fields: [serviceId], references: [id])
+  type             BookingType   @default(standard)
+  status           BookingStatus @default(Pending)
+  paymentStatus    PaymentStatus @default(Unpaid)
+  eventDate        DateTime
+  eventTime        String?
+  guestCount       Int?
+  quantity         Int           @default(1)
+  addons           String[]      // addon IDs
+  location         String
+  additionalNote   String?
+  inspirationalImages String[]   // S3 URLs
+  totalAmount      Float
+  depositAmount    Float
+  depositPaid      Boolean       @default(false)
+  loyaltyPointsUsed Int         @default(0)
+  rejectionReason  String?
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  payments         Payment[]
+  reviews          Review[]
+  reportedBookings ReportedBooking[]
+  payouts          Payout[]
+
+  @@index([userId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([userId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("bookings")
+}
+
+// ─── CUSTOM QUOTATIONS ────────────────────────────────────────────────────────
+
+model CustomQuotation {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id])
+  vendorId         String?
+  vendor           Vendor?         @relation(fields: [vendorId], references: [id])
+  services         String[]
+  location         String
+  eventDate        DateTime
+  startTime        String?
+  endTime          String?
+  guestCount       Int
+  budgetMin        Float
+  budgetMax        Float
+  additionalNote   String?
+  inspirationalImages String[]     // S3 URLs
+  status           QuotationStatus @default(Requested)
+  quotationAmount  Float?
+  depositPercent   Float           @default(20)
+  loyaltyPointsUsed Int           @default(0)
+  aiRecommendedMin Float?
+  aiRecommendedMax Float?
+  aiRecommendedAvg Float?
+  rejectionReason  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("custom_quotations")
+}
+
+// ─── PAYMENTS ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id            String          @id @default(uuid())
+  bookingId     String
+  booking       Booking         @relation(fields: [bookingId], references: [id])
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  vendorId      String
+  vendor        Vendor          @relation(fields: [vendorId], references: [id])
+  amount        Float
+  type          String          // deposit | final
+  method        PaymentMethod
+  status        PaymentTxStatus @default(pending)
+  transactionId String?         @unique
+  gatewayRef    String?         // PayTabs/Telr reference
+  gatewayData   Json?           // raw gateway response
+  receiptUrl    String?         // S3 URL for PDF receipt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([vendorId])
+  @@index([userId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ─── REVIEWS ─────────────────────────────────────────────────────────────────
+
+model Review {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id])
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  rating      Int      // 1-5
+  review      String
+  vendorReply String?
+  repliedAt   DateTime?
+  isHidden    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([bookingId])  // one review per booking
+  @@index([vendorId])
+  @@index([serviceId])
+  @@index([vendorId])
+  @@index([userId])
+  @@map("reviews")
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  vendorId  String?
+  vendor    Vendor?   @relation(fields: [vendorId], references: [id])
+  adminId   String?
+  admin     Admin?    @relation(fields: [adminId], references: [id])
+  type      NotifType
+  title     String
+  message   String
+  data      Json?     // extra payload (bookingId, etc.)
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([vendorId])
+  @@index([userId])
+  @@index([vendorId])
+  @@map("notifications")
+}
+
+// ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
+
+model PushNotification {
+  id        String   @id @default(uuid())
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id])
+  title     String
+  message   String
+  audience  String   // all | users | vendors
+  reach     Int      @default(0)
+  opened    Int      @default(0)
+  fcmData   Json?    // FCM response
+  status    String   @default("Sent")
+  sentAt    DateTime @default(now())
+
+  @@map("push_notifications")
+}
+
+// ─── MEETING REQUESTS ─────────────────────────────────────────────────────────
+
+model MeetingRequest {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  vendorId    String
+  vendor      Vendor        @relation(fields: [vendorId], references: [id])
+  name        String
+  phone       String
+  email       String
+  requestDate DateTime
+  requestTime String
+  reason      String
+  status      MeetingStatus @default(Pending)
+  notes       String?       // vendor internal notes
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([vendorId])
+  @@map("meeting_requests")
+}
+
+// ─── REPORTED BOOKINGS ────────────────────────────────────────────────────────
+
+model ReportedBooking {
+  id          String       @id @default(cuid())
+  bookingId   String
+  booking     Booking      @relation(fields: [bookingId], references: [id])
+  reportedBy  String
+  user        User         @relation(fields: [reportedBy], references: [id])
+  vendorId    String?
+  vendor      Vendor?      @relation(fields: [vendorId], references: [id])
+  reasons     String[]
+  details     String
+  status      ReportStatus @default(Pending)
+  adminNote   String?
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([bookingId])
+  @@map("reported_bookings")
+}
+
+// ─── SUBSCRIPTION PLANS ───────────────────────────────────────────────────────
+
+model SubscriptionPlan {
+  id                  String   @id @default(uuid())
+  name                String   @unique
+  commissionDiscount  Float    @default(0)
+  profileFeaturing    Boolean  @default(false)
+  bannerPromotion     String   @default("none") // none | platform | both
+  priceMonthly        Float
+  priceYearly         Float
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  subscriptionLogs SubscriptionLog[]
+
+  @@map("subscription_plans")
+}
+
+model SubscriptionLog {
+  id        String           @id @default(uuid())
+  vendorId  String
+  vendor    Vendor           @relation(fields: [vendorId], references: [id])
+  planId    String
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id])
+  planName  String
+  startDate DateTime
+  endDate   DateTime
+  amount    Float
+  billing   BillingCycle
+  status    String           @default("Active") // Active | Expired | Cancelled
+  createdAt DateTime         @default(now())
+
+  @@index([vendorId])
+  @@map("subscription_logs")
+}
+
+// ─── BUDGETS ──────────────────────────────────────────────────────────────────
+
+model Budget {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  totalBudget Float
+  allocations Json     // { Venue: 8000, Photography: 3000, ... }
+  spent       Json     @default("{}")
+  modifiedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("budgets")
+}
+
+// ─── LOYALTY ──────────────────────────────────────────────────────────────────
+
+model LoyaltyConfig {
+  id            String @id @default("singleton")
+  baseAmount    Float  @default(100)
+  pointsPerBase Int    @default(1)
+  pointValue    Float  @default(0.1)
+  updatedAt     DateTime @updatedAt
+
+  @@map("loyalty_config")
+}
+
+model LoyaltyLog {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  type        LoyaltyType
+  points      Int         // positive = awarded, negative = redeemed
+  bookingId   String?
+  description String
+  expiresAt   DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId])
+  @@map("loyalty_logs")
+}
+
+// ─── REFERRAL ─────────────────────────────────────────────────────────────────
+
+model ReferralConfig {
+  id            String @id @default("singleton")
+  referrerBonus Int    @default(200)
+  refereeBonus  Int    @default(100)
+  minBookingAmount Float @default(1000)
+  updatedAt     DateTime @updatedAt
+
+  @@map("referral_config")
+}
+
+// ─── PAYOUTS ──────────────────────────────────────────────────────────────────
+
+model Payout {
+  id          String       @id @default(cuid())
+  vendorId    String
+  vendor      Vendor       @relation(fields: [vendorId], references: [id])
+  bookingId   String
+  booking     Booking      @relation(fields: [bookingId], references: [id])
+  amount      Float
+  commission  Float
+  netAmount   Float
+  status      PayoutStatus @default(Pending)
+  bankDetails Json?
+  requestedAt DateTime     @default(now())
+  approvedAt  DateTime?
+  paidAt      DateTime?
+  notes       String?
+
+  @@index([vendorId])
+  @@index([status])
+  @@index([vendorId])
+  @@index([status])
+  @@map("payouts")
+}
+
+// ─── QUERIES ──────────────────────────────────────────────────────────────────
+
+model Query {
+  id         String      @id @default(cuid())
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  vendorId   String?
+  vendor     Vendor?     @relation(fields: [vendorId], references: [id])
+  name       String
+  email      String
+  phone      String?
+  subject    String
+  message    String
+  status     QueryStatus @default(Open)
+  adminReply String?
+  repliedAt  DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([vendorId])
+  @@map("queries")
+}
+
+// ─── HOME CONTENT ─────────────────────────────────────────────────────────────
+
+model HomeContent {
+  id        String         @id @default(uuid())
+  section   ContentSection
+  title     String
+  subtitle  String?
+  imageUrl  String?        // S3 URL
+  ctaText   String?
+  ctaUrl    String?
+  isActive  Boolean        @default(true)
+  sortOrder Int            @default(0)
+  updatedAt DateTime       @updatedAt
+
+  @@map("home_content")
+}
+
+// ─── BANK DETAILS ─────────────────────────────────────────────────────────────
+
+model BankDetail {
+  id            String  @id @default(uuid())
+  vendorId      String
+  vendor        Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  bankName      String
+  accountName   String
+  iban          String
+  swift         String?
+  routingNumber String?
+  isPrimary     Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([vendorId])
+  @@map("bank_details")
+}
+
+// ─── WISHLIST ─────────────────────────────────────────────────────────────────
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  vendorId  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, vendorId])
+  @@map("wishlists")
+}
+
+// ─── OTP STORE ────────────────────────────────────────────────────────────────
+
+model OtpRecord {
+  id        String   @id @default(uuid())
+  target    String   // email or phone
+  code      String
+  purpose   String   // forgot_password | phone_verify | email_verify
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([target, purpose])
+  @@map("otp_records")
+}
+
+// ─── REFRESH TOKENS ───────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  vendorId  String?
+  adminId   String?
+  role      String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ─── COMMISSION CONFIG ────────────────────────────────────────────────────────
+
+model CommissionConfig {
+  id            String @id @default("singleton")
+  defaultRate   Float  @default(10)
+  premiumRate   Float  @default(7)
+  standardRate  Float  @default(8.5)
+  updatedAt     DateTime @updatedAt
+
+  @@map("commission_config")
+}
+
+// ─── PLATFORM SETTINGS ────────────────────────────────────────────────────────
+
+model PlatformSettings {
+  id                     String  @id @default("singleton")
+  maintenanceMode        Boolean @default(false)
+  registrationOpen       Boolean @default(true)
+  vendorApprovalRequired Boolean @default(true)
+  maxImagesPerService    Int     @default(10)
+  platformCurrency       String  @default("AED")
+  supportEmail           String  @default("support@honeymoon.ae")
+  supportPhone           String  @default("+97141234567")
+  updatedAt              DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+// ─── PERFORMANCE INDEXES (added for high-traffic queries) ─────────────────────
+
+// NOTE: Add @@index directives to existing models via migration.
+// The indexes below are added as new models. Existing model indexes
+// are patched below via sed commands.
+
+// ─── CHAT / MESSAGING ─────────────────────────────────────────────────────────
+
+model Conversation {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  vendorId     String
+  vendor       Vendor    @relation(fields: [vendorId], references: [id])
+  lastMessage  String?
+  lastMessageAt DateTime?
+  userUnread   Int       @default(0)
+  vendorUnread Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     Message[]
+
+  @@unique([userId, vendorId])
+  @@index([userId])
+  @@index([vendorId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderRole     String       // "user" | "vendor"
+  senderId       String
+  body           String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+// ─── PUSH NOTIFICATION TOKENS ─────────────────────────────────────────────────
+
+model PushToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String?
+  vendorId  String?
+  platform  String   // "ios" | "android"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([vendorId])
+  @@map("push_tokens")
+}
