@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F5F5EF;
+  --sidebar-bg: #174a37;
+  --header-bg: #174a37;
+  --card: #ffffff;
+  --input-bg: #F5F5EF;
+  --gold: #CFB383;
+  --dark-green: #1A3828;
+  --text: #1a1a1a;
+  --muted: #666666;
+  --border: rgba(184,154,105,0.2);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: clip;
+}
+html, body { min-height: 100%; }
+body {
+  background: #F5F5EF;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Typography ── */
+.font-display { font-family: 'Baskerville Old Face', 'Libre Baskerville', 'Baskerville', Georgia, serif; }
+
+/* ── Buttons ── */
+.btn-primary {
+  @apply inline-flex items-center gap-2 bg-[#1A3828] text-white font-medium text-base px-6 py-3 rounded-full transition-opacity hover:opacity-90 whitespace-nowrap;
+}
+.btn-secondary {
+  @apply inline-flex items-center gap-2 bg-[#CBD5C0] text-[#1A3828] font-medium text-base px-6 py-3 rounded-full transition-opacity hover:opacity-80 whitespace-nowrap;
+}
+.btn-outline {
+  @apply inline-flex items-center gap-2 border border-[#1A3828] text-[#1A3828] font-medium text-base px-6 py-3 rounded-full transition-colors hover:bg-[#1A3828] hover:text-white whitespace-nowrap;
+}
+
+/* ── Cards ── */
+.card {
+  @apply bg-white rounded-2xl border border-[rgba(184_154_105_/_0.29)] shadow-[0_0_55px_0_rgba(0_0_0_/_0.05)];
+}
+
+/* ── Tables ── */
+.tbl-head { @apply font-bold text-[#1a1a1a] text-sm capitalize; }
+.tbl-row { @apply border-b border-[rgba(184_154_105_/_0.2)] last:border-0 hover:bg-[#FAFAF8] transition-colors; }
+
+/* ── Nav items (sidebar) ── */
+.nav-item {
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-[#F5F5EF] font-medium text-base capitalize cursor-pointer transition-all;
+}
+.nav-item:hover { background: rgba(255,255,255,0.08); }
+.nav-item.active { @apply bg-[#f4ebd0] text-[#174a37]; }
+
+/* ── Status text ── */
+.status-active, .status-completed, .status-resolved, .status-received { @apply text-green-600 font-medium; }
+.status-pending, .status-upcoming, .status-requested { @apply text-amber-600 font-medium; }
+.status-rejected, .status-lost, .status-returned { @apply text-red-600 font-medium; }
+.status-inactive { @apply text-gray-500 font-medium; }
+.status-contacted { @apply text-blue-600 font-medium; }
+.status-scheduled { @apply text-purple-600 font-medium; }
+.status-converted { @apply text-green-600 font-medium; }
+.status-unpaid { @apply text-gray-900 font-medium; }
+.status-paid { @apply text-green-600 font-medium; }
+
+/* ── Inputs ── */
+.input-field {
+  @apply w-full bg-[#F5F5EF] border border-[rgba(184_154_105_/_0.2)] rounded-lg px-4 py-3 text-base text-[#1a1a1a] outline-none focus:border-[#CFB383] transition-colors placeholder:text-[#999];
+}
+
+/* ── Tabs ── */
+.tab-pill {
+  @apply px-5 py-2 rounded-full text-sm font-medium border border-[#1A3828] text-[#1A3828] cursor-pointer transition-all;
+}
+.tab-pill.active { @apply bg-[#1A3828] text-white; }
+
+/* ── Modal overlay ── */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4;
+}
+.modal-box {
+  @apply bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(184,154,105,0.3); border-radius: 99px; }
